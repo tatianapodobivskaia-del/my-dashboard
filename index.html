@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus — Business Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#0a0c10;--bg-secondary:#12151c;--bg-card:#161a24;--bg-card-hover:#1a1f2b;
+  --border:#1e2433;--border-light:#2a3040;
+  --text-primary:#e8eaf0;--text-secondary:#8a92a6;--text-muted:#555d72;
+  --accent-cyan:#00d4ff;--accent-green:#00e68a;--accent-red:#ff4d6a;
+  --accent-amber:#ffb020;--accent-violet:#a78bfa;--accent-blue:#3b82f6;
+  --glow-cyan:rgba(0,212,255,.15);--glow-green:rgba(0,230,138,.12);--glow-red:rgba(255,77,106,.12);
+  --radius:12px;--radius-sm:8px;
+}
+html{font-size:14px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-violet));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;letter-spacing:-0.5px}
+.brand{font-weight:700;font-size:17px;letter-spacing:-.3px;color:var(--text-primary)}
+.brand span{color:var(--accent-cyan);font-weight:400;margin-left:6px;font-size:13px;opacity:.7}
+.topbar-right{display:flex;align-items:center;gap:18px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse-dot 2s infinite;box-shadow:0 0 8px var(--accent-green)}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.live-label{font-size:12px;color:var(--accent-green);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.timestamp{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted)}
+
+/* Layout */
+.dashboard{padding:20px 28px 40px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto}
+
+/* KPI Row */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.kpi-card:hover{border-color:var(--border-light);box-shadow:0 4px 24px rgba(0,0,0,.3)}
+.kpi-card.flash-green{animation:flashG .6s ease}
+.kpi-card.flash-red{animation:flashR .6s ease}
+@keyframes flashG{0%{box-shadow:inset 0 0 30px var(--glow-green)}100%{box-shadow:none}}
+@keyframes flashR{0%{box-shadow:inset 0 0 30px var(--glow-red)}100%{box-shadow:none}}
+.kpi-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-secondary)}
+.kpi-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace}
+.kpi-badge.up{color:var(--accent-green);background:var(--glow-green)}
+.kpi-badge.down{color:var(--accent-red);background:var(--glow-red)}
+.kpi-value{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:2px;transition:color .3s}
+.kpi-sub{font-size:11px;color:var(--text-muted);margin-bottom:10px}
+.kpi-spark{width:100%;height:40px;display:block}
+
+/* Charts grid */
+.charts-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;position:relative}
+.chart-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.toggle-btn{display:flex;background:var(--bg-primary);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.toggle-btn button{border:none;background:none;color:var(--text-muted);font-family:'DM Sans';font-size:11px;font-weight:600;padding:5px 14px;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.5px}
+.toggle-btn button.active{background:var(--accent-cyan);color:#0a0c10}
+.revenue-canvas{width:100%;height:280px}
+.donut-wrap{display:flex;align-items:center;gap:24px}
+.donut-canvas{width:200px;height:200px;flex-shrink:0}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.legend-val{margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--text-primary);font-size:12px}
+
+/* Bottom row */
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.regional-canvas{width:100%;height:220px}
+
+/* Activity feed */
+.feed{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.feed-item{padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;animation:fadeSlide .4s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.feed-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.feed-icon.sale{background:var(--glow-green);color:var(--accent-green)}
+.feed-icon.user{background:var(--glow-cyan);color:var(--accent-cyan)}
+.feed-icon.alert{background:var(--glow-red);color:var(--accent-red)}
+.feed-icon.system{background:rgba(167,139,250,.12);color:var(--accent-violet)}
+.feed-text{font-size:12.5px;color:var(--text-primary);line-height:1.45}
+.feed-text .meta{color:var(--text-muted);font-size:11px;display:block;margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+/* AI insights */
+.ai-bar{background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(167,139,250,.06));border:1px solid rgba(0,212,255,.15);border-radius:var(--radius);padding:16px 22px;display:flex;align-items:center;gap:16px}
+.ai-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-violet));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#fff;font-weight:700}
+.ai-content{flex:1;min-width:0}
+.ai-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent-cyan);margin-bottom:4px}
+.ai-text{font-size:13px;color:var(--text-primary);line-height:1.5;transition:opacity .4s}
+.ai-text.fade{opacity:0}
+
+@media(max-width:1100px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .charts-grid,.bottom-grid{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .dashboard{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">N</div>
+    <div class="brand">Nexus<span>Analytics</span></div>
+  </div>
+  <div class="topbar-right">
+    <div style="display:flex;align-items:center;gap:6px"><div class="live-dot"></div><span class="live-label">Live</span></div>
+    <div class="timestamp" id="clock"></div>
+  </div>
+</div>
+
+<div class="dashboard">
+  <!-- KPI Cards -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>Monthly Revenue — 2025</span>
+        <div class="toggle-btn" id="chartToggle">
+          <button class="active" data-mode="line">Line</button>
+          <button data-mode="bar">Bar</button>
+        </div>
+      </div>
+      <canvas class="revenue-canvas" id="revenueChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Revenue by Channel</span></div>
+      <div class="donut-wrap">
+        <canvas class="donut-canvas" id="donutChart"></canvas>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom -->
+  <div class="bottom-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Revenue by Region</span></div>
+      <canvas class="regional-canvas" id="regionChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Live Activity Feed</span></div>
+      <div class="feed" id="activityFeed"></div>
+    </div>
+    <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="ai-bar">
+        <div class="ai-icon">✦</div>
+        <div class="ai-content">
+          <div class="ai-tag">AI Insight</div>
+          <div class="ai-text" id="aiText"></div>
+        </div>
+      </div>
+      <div class="ai-bar" style="margin-top:12px">
+        <div class="ai-icon" style="background:linear-gradient(135deg,var(--accent-amber),var(--accent-red))">⚡</div>
+        <div class="ai-content">
+          <div class="ai-tag" style="color:var(--accent-amber)">Recommendation</div>
+          <div class="ai-text" id="aiRec"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ DATA ENGINE ============
+const R=(a,b)=>Math.random()*(b-a)+a;
+const RI=(a,b)=>Math.floor(R(a,b));
+const pick=a=>a[RI(0,a.length)];
+const fmt=n=>{if(n>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toFixed(0)};
+const fmtK=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toFixed(0);
+
+// KPI definitions
+const kpis=[
+  {id:'revenue',label:'Revenue',value:2847500,fmt:v=>fmt(v),spark:[],delta:3.2,unit:'vs last month',gen:v=>v+R(-15000,22000)},
+  {id:'users',label:'Active Users',value:184200,fmt:v=>fmtK(v),spark:[],delta:5.7,unit:'vs last month',gen:v=>v+R(-800,1200)},
+  {id:'cvr',label:'Conversion Rate',value:3.42,fmt:v=>v.toFixed(2)+'%',spark:[],delta:0.18,unit:'pp vs last month',gen:v=>Math.max(1,v+R(-.08,.1))},
+  {id:'aov',label:'Avg Order Value',value:128.5,fmt:v=>'$'+v.toFixed(0),spark:[],delta:2.1,unit:'vs last month',gen:v=>v+R(-3,4)},
+  {id:'nps',label:'Net Promoter Score',value:72,fmt:v=>v.toFixed(0),spark:[],delta:4,unit:'pts vs last quarter',gen:v=>Math.min(100,Math.max(30,v+R(-1.5,2)))}
+];
+// Seed sparkline data
+kpis.forEach(k=>{for(let i=0;i<20;i++)k.spark.push(k.value+R(-k.value*.03,k.value*.03))});
+
+// Monthly revenue
+const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let monthlyRev=[210,228,245,238,260,275,290,282,305,318,332,350];
+const projected=[null,null,null,null,null,null,null,null,null,340,358,380];
+
+// Channel data
+const channels=[
+  {name:'Direct',value:34,color:'#00d4ff'},
+  {name:'Organic Search',value:26,color:'#00e68a'},
+  {name:'Paid Ads',value:20,color:'#a78bfa'},
+  {name:'Social',value:12,color:'#ffb020'},
+  {name:'Referral',value:8,color:'#ff4d6a'}
+];
+
+// Regional data
+const regions=[
+  {name:'North America',value:1250,color:'#00d4ff'},
+  {name:'Europe',value:820,color:'#a78bfa'},
+  {name:'Asia Pacific',value:480,color:'#00e68a'},
+  {name:'Latin America',value:195,color:'#ffb020'},
+  {name:'Middle East',value:102,color:'#ff4d6a'}
+];
+
+// Activity events
+const eventTypes=[
+  {type:'sale',icon:'$',msgs:['New order #%ID% — $%AMT% from %LOC%','Subscription upgraded by %NAME% — $%AMT%/mo','Enterprise deal closed — $%AMT% ARR']},
+  {type:'user',icon:'→',msgs:['%NAME% signed up from %LOC%','%NAME% completed onboarding','New team workspace created by %NAME%']},
+  {type:'alert',icon:'!',msgs:['Cart abandonment spike detected in %LOC%','Server response time above 200ms','Payment gateway latency increased']},
+  {type:'system',icon:'◆',msgs:['A/B test "CTA-v3" reached significance','Daily backup completed successfully','CDN cache refreshed across all regions']}
+];
+const names=['Alex M.','Sarah K.','Jordan P.','Taylor R.','Morgan L.','Casey W.','Jamie T.','Riley D.'];
+const locations=['New York','London','Tokyo','Berlin','São Paulo','Toronto','Sydney','Singapore'];
+
+function genEvent(){
+  const et=pick(eventTypes);
+  let msg=pick(et.msgs).replace('%ID%',RI(8000,9999)).replace('%AMT%',RI(49,4999)).replace('%LOC%',pick(locations)).replace('%NAME%',pick(names));
+  return{type:et.type,icon:et.icon,msg,time:new Date()};
+}
+
+// AI Insights
+const insights=[
+  'Mobile conversion is up 18% this week — driven by the new checkout flow launched Monday.',
+  'Enterprise segment shows 3.2× higher LTV than SMB. Consider increasing enterprise ad spend.',
+  'Thursday-Friday window shows peak purchase intent. Shift campaign budgets accordingly.',
+  'Cart abandonment dropped 12% after implementing one-click checkout in APAC markets.',
+  'Organic traffic from long-tail keywords grew 24% MoM — content strategy is compounding.',
+  'Customer churn prediction model flags 847 at-risk accounts for proactive outreach.',
+  'Revenue per session increased 9% on pages with social proof elements enabled.'
+];
+const recs=[
+  'Increase paid search budget by 15% for high-intent keywords showing 4.2× ROAS.',
+  'Launch targeted win-back campaign for 2,340 dormant users from Q3 cohort.',
+  'Implement dynamic pricing for the top 50 SKUs — estimated +$180K quarterly uplift.',
+  'A/B test reducing checkout steps from 4 to 2 — projected 8-12% conversion lift.',
+  'Expand into LATAM paid social — CPAs are 40% below North American benchmarks.',
+  'Deploy personalized email sequences for users who viewed pricing 3+ times.',
+  'Bundle top accessories with hero products — cross-sell analysis shows 22% attach rate potential.'
+];
+
+// ============ RENDERING ============
+const dpr=window.devicePixelRatio||1;
+function setupCanvas(canvas){
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;
+  canvas.height=rect.height*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  return{ctx,w:rect.width,h:rect.height};
+}
+
+// Build KPI cards
+const kpiRow=document.getElementById('kpiRow');
+kpis.forEach((k,i)=>{
+  const card=document.createElement('div');
+  card.className='kpi-card';card.id='kpi-'+k.id;
+  const up=k.delta>=0;
+  card.innerHTML=`
+    <div class="kpi-header">
+      <span class="kpi-label">${k.label}</span>
+      <span class="kpi-badge ${up?'up':'down'}" id="badge-${k.id}">${up?'▲':'▼'} ${Math.abs(k.delta).toFixed(1)}%</span>
+    </div>
+    <div class="kpi-value" id="val-${k.id}">${k.fmt(k.value)}</div>
+    <div class="kpi-sub">${k.unit}</div>
+    <canvas class="kpi-spark" id="spark-${k.id}"></canvas>`;
+  kpiRow.appendChild(card);
+});
+
+// Draw sparkline
+function drawSparkline(canvasId,data,color){
+  const canvas=document.getElementById(canvasId);
+  const{ctx,w,h}=setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const min=Math.min(...data),max=Math.max(...data),range=max-min||1;
+  const step=w/(data.length-1);
+  // gradient fill
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,color+'40');grad.addColorStop(1,color+'00');
+  ctx.beginPath();ctx.moveTo(0,h);
+  data.forEach((v,i)=>{const x=i*step,y=h-((v-min)/range)*(h-4)-2;i===0?ctx.lineTo(x,y):ctx.lineTo(x,y)});
+  ctx.lineTo(w,h);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  // line
+  ctx.beginPath();
+  data.forEach((v,i)=>{const x=i*step,y=h-((v-min)/range)*(h-4)-2;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+  // dot at end
+  const lastY=h-((data[data.length-1]-min)/range)*(h-4)-2;
+  ctx.beginPath();ctx.arc(w,lastY,3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+  ctx.beginPath();ctx.arc(w,lastY,6,0,Math.PI*2);ctx.fillStyle=color+'30';ctx.fill();
+}
+
+const sparkColors=['#00d4ff','#00e68a','#a78bfa','#ffb020','#3b82f6'];
+
+function updateKPIs(){
+  kpis.forEach((k,i)=>{
+    const prev=k.value;
+    k.value=k.gen(k.value);
+    k.spark.push(k.value);if(k.spark.length>25)k.spark.shift();
+    k.delta+= R(-.3,.35);
+    const up=k.delta>=0;
+    document.getElementById('val-'+k.id).textContent=k.fmt(k.value);
+    const badge=document.getElementById('badge-'+k.id);
+    badge.className='kpi-badge '+(up?'up':'down');
+    badge.textContent=(up?'▲':'▼')+' '+Math.abs(k.delta).toFixed(1)+'%';
+    const card=document.getElementById('kpi-'+k.id);
+    card.classList.remove('flash-green','flash-red');
+    void card.offsetWidth;
+    card.classList.add(k.value>=prev?'flash-green':'flash-red');
+    drawSparkline('spark-'+k.id,k.spark,sparkColors[i]);
+  });
+}
+
+// ============ REVENUE CHART ============
+let chartMode='line';
+const revCanvas=document.getElementById('revenueChart');
+
+function drawRevenueChart(){
+  const{ctx,w,h}=setupCanvas(revCanvas);
+  ctx.clearRect(0,0,w,h);
+  const pad={t:10,r:20,b:32,l:50};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const allVals=[...monthlyRev,...projected.filter(v=>v!==null)];
+  const maxV=Math.max(...allVals)*1.15;
+  const barW=cw/12;
+
+  // Grid
+  ctx.strokeStyle='#1e2433';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const y=pad.t+ch-(i/5)*ch;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle='#555d72';ctx.font='11px JetBrains Mono';ctx.textAlign='right';
+    ctx.fillText('$'+(maxV*i/5/1).toFixed(0)+'K',pad.l-8,y+4);
+  }
+  // Month labels
+  ctx.fillStyle='#555d72';ctx.font='11px DM Sans';ctx.textAlign='center';
+  months.forEach((m,i)=>{ctx.fillText(m,pad.l+i*barW+barW/2,h-8)});
+
+  if(chartMode==='bar'){
+    monthlyRev.forEach((v,i)=>{
+      const bh=(v/maxV)*ch;
+      const x=pad.l+i*barW+barW*.15;
+      const bw2=barW*.7;
+      const y=pad.t+ch-bh;
+      const grad=ctx.createLinearGradient(x,y,x,pad.t+ch);
+      grad.addColorStop(0,'#00d4ff');grad.addColorStop(1,'#00d4ff30');
+      ctx.fillStyle=grad;
+      roundRect(ctx,x,y,bw2,bh,4);ctx.fill();
+    });
+    // Projected
+    projected.forEach((v,i)=>{
+      if(v===null)return;
+      const bh=(v/maxV)*ch;const x=pad.l+i*barW+barW*.15;const bw2=barW*.7;const y=pad.t+ch-bh;
+      ctx.strokeStyle='#a78bfa';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      roundRect(ctx,x,y,bw2,bh,4);ctx.stroke();ctx.setLineDash([]);
+    });
+  } else {
+    // Area under line
+    const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+    grad.addColorStop(0,'#00d4ff25');grad.addColorStop(1,'#00d4ff00');
+    ctx.beginPath();ctx.moveTo(pad.l+barW/2,pad.t+ch);
+    monthlyRev.forEach((v,i)=>{ctx.lineTo(pad.l+i*barW+barW/2,pad.t+ch-(v/maxV)*ch)});
+    ctx.lineTo(pad.l+(monthlyRev.length-1)*barW+barW/2,pad.t+ch);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+    // Line
+    ctx.beginPath();
+    monthlyRev.forEach((v,i)=>{const x=pad.l+i*barW+barW/2,y=pad.t+ch-(v/maxV)*ch;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+    ctx.strokeStyle='#00d4ff';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.stroke();
+    // Dots
+    monthlyRev.forEach((v,i)=>{const x=pad.l+i*barW+barW/2,y=pad.t+ch-(v/maxV)*ch;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fillStyle='#00d4ff';ctx.fill();ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fillStyle='#00d4ff20';ctx.fill()});
+    // Projected dashed
+    const lastReal=monthlyRev.length-1;
+    ctx.beginPath();ctx.setLineDash([6,4]);ctx.strokeStyle='#a78bfa';ctx.lineWidth=2;
+    let started=false;
+    projected.forEach((v,i)=>{
+      if(v===null)return;
+      const x=pad.l+i*barW+barW/2,y=pad.t+ch-(v/maxV)*ch;
+      if(!started){
+        const px=pad.l+lastReal*barW+barW/2,py=pad.t+ch-(monthlyRev[lastReal]/maxV)*ch;
+        ctx.moveTo(px,py);started=true;
+      }
+      ctx.lineTo(x,y);
+    });
+    ctx.stroke();ctx.setLineDash([]);
+    projected.forEach((v,i)=>{if(v===null)return;const x=pad.l+i*barW+barW/2,y=pad.t+ch-(v/maxV)*ch;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fillStyle='#a78bfa';ctx.fill()});
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath()}
+
+// Toggle
+document.getElementById('chartToggle').addEventListener('click',e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  chartMode=e.target.dataset.mode;
+  document.querySelectorAll('#chartToggle button').forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  drawRevenueChart();
+});
+
+// ============ DONUT CHART ============
+function drawDonut(){
+  const canvas=document.getElementById('donutChart');
+  const{ctx,w,h}=setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2,cy=h/2,outerR=Math.min(w,h)/2-8,innerR=outerR*.62;
+  let startAngle=-Math.PI/2;
+  const total=channels.reduce((s,c)=>s+c.value,0);
+  channels.forEach(c=>{
+    const sweep=(c.value/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx+innerR*Math.cos(startAngle),cy+innerR*Math.sin(startAngle));
+    ctx.arc(cx,cy,outerR,startAngle,startAngle+sweep);
+    const endInner=startAngle+sweep;
+    ctx.arc(cx,cy,innerR,endInner,startAngle,true);
+    ctx.closePath();ctx.fillStyle=c.color;ctx.fill();
+    // tiny gap
+    ctx.strokeStyle='#161a24';ctx.lineWidth=2;ctx.stroke();
+    startAngle+=sweep;
+  });
+  // Center text
+  ctx.fillStyle='#e8eaf0';ctx.font='700 22px DM Sans';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(fmt(channels.reduce((s,c)=>s+c.value*28475,0)),cx,cy-8);
+  ctx.fillStyle='#555d72';ctx.font='11px DM Sans';ctx.fillText('Total Revenue',cx,cy+12);
+  // Legend
+  const legend=document.getElementById('donutLegend');
+  legend.innerHTML='';
+  channels.forEach(c=>{
+    const d=document.createElement('div');d.className='legend-item';
+    d.innerHTML=`<span class="legend-dot" style="background:${c.color}"></span><span>${c.name}</span><span class="legend-val">${c.value}%</span>`;
+    legend.appendChild(d);
+  });
+}
+
+// ============ REGIONAL BAR CHART ============
+function drawRegionChart(){
+  const canvas=document.getElementById('regionChart');
+  const{ctx,w,h}=setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const pad={t:10,r:16,b:10,l:110};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const barH=ch/regions.length;
+  const maxV=Math.max(...regions.map(r=>r.value))*1.15;
+  regions.forEach((r,i)=>{
+    const y=pad.t+i*barH;
+    const bh=barH*.55;
+    const bw=(r.value/maxV)*cw;
+    // Label
+    ctx.fillStyle='#8a92a6';ctx.font='12px DM Sans';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(r.name,pad.l-12,y+barH/2);
+    // Bar bg
+    ctx.fillStyle='#1a1f2b';
+    roundRect(ctx,pad.l,y+(barH-bh)/2,cw,bh,4);ctx.fill();
+    // Bar
+    const grad=ctx.createLinearGradient(pad.l,0,pad.l+bw,0);
+    grad.addColorStop(0,r.color);grad.addColorStop(1,r.color+'80');
+    ctx.fillStyle=grad;
+    roundRect(ctx,pad.l,y+(barH-bh)/2,bw,bh,4);ctx.fill();
+    // Value
+    ctx.fillStyle='#e8eaf0';ctx.font='500 11px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText(fmt(r.value*1000),pad.l+bw+8,y+barH/2);
+  });
+}
+
+// ============ ACTIVITY FEED ============
+const feed=document.getElementById('activityFeed');
+let feedItems=[];
+
+function addFeedEvent(){
+  const ev=genEvent();
+  const item=document.createElement('div');item.className='feed-item';
+  const ago=Math.floor(R(1,59));
+  item.innerHTML=`<div class="feed-icon ${ev.type}">${ev.icon}</div><div class="feed-text">${ev.msg}<span class="meta">${ago}s ago</span></div>`;
+  feed.prepend(item);
+  feedItems.unshift(item);
+  if(feedItems.length>30){const old=feedItems.pop();old.remove()}
+}
+// Seed
+for(let i=0;i<8;i++)addFeedEvent();
+
+// ============ AI INSIGHTS ============
+let insightIdx=0,recIdx=0;
+const aiText=document.getElementById('aiText');
+const aiRec=document.getElementById('aiRec');
+aiText.textContent=insights[0];
+aiRec.textContent=recs[0];
+
+function rotateInsight(){
+  aiText.classList.add('fade');
+  setTimeout(()=>{insightIdx=(insightIdx+1)%insights.length;aiText.textContent=insights[insightIdx];aiText.classList.remove('fade')},400);
+}
+function rotateRec(){
+  aiRec.classList.add('fade');
+  setTimeout(()=>{recIdx=(recIdx+1)%recs.length;aiRec.textContent=recs[recIdx];aiRec.classList.remove('fade')},400);
+}
+
+// ============ CLOCK ============
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=now.toLocaleTimeString('en-US',{hour12:false})+' EST';
+}
+
+// ============ LIVE LOOP ============
+function init(){
+  updateClock();setInterval(updateClock,1000);
+  updateKPIs();
+  drawRevenueChart();drawDonut();drawRegionChart();
+  // Update every 2s
+  setInterval(()=>{
+    updateKPIs();
+    // Slightly jitter monthly revenue for liveliness
+    monthlyRev=monthlyRev.map(v=>v+R(-.8,.8));
+    drawRevenueChart();
+    // Slowly shift regional
+    regions.forEach(r=>{r.value+=R(-5,6)});
+    drawRegionChart();
+  },2000);
+  // New feed event every 3s
+  setInterval(addFeedEvent,3000);
+  // Rotate AI every 6s
+  setInterval(rotateInsight,6000);
+  setInterval(rotateRec,8000);
+}
+
+// Handle resize
+let resizeTimer;
+window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{updateKPIs();drawRevenueChart();drawDonut();drawRegionChart()},150)});
+
+init();
+</script>
+</body>
+</html>
